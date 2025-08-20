@@ -5,63 +5,57 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>EonFlow Dashboard</title>
 
-  <!-- Libraries -->
+  <!-- libs -->
   <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
   <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
   <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-  <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
   <script src="https://cdn.tailwindcss.com"></script>
 
-  <!-- ✅ Load build-time vars BEFORE your app script -->
+  <!-- env vars generated at build (OK if 404 for now) -->
   <script src="/env.js"></script>
+  <noscript><style>body{background:#0b1220;color:#e5e7eb}#nojs{padding:24px;font:14px system-ui}</style></noscript>
 </head>
 <body class="bg-slate-950 text-slate-100">
   <div id="root" class="min-h-screen"></div>
+  <noscript><div id="nojs">JavaScript is required to view the EonFlow dashboard.</div></noscript>
 
   <script type="text/babel">
-    const { Calendar, MessageSquare, FileText, Settings, Play, Clock, CheckCircle, XCircle, Activity, Zap, RefreshCw } = lucide;
-
-    // ✅ Prefer env.js value; fall back to your Railway URL
+    // Prefer env var from env.js; otherwise fallback to your Railway API
     const API = (window.__EONFLOW_API__ || "https://web-production-4bc2.up.railway.app");
 
-    function Stat({icon:Icon, label, value}) {
+    function Stat({ label, value }) {
       return (
-        <div className="p-4 rounded-2xl bg-slate-900/60 border border-slate-800 flex items-center gap-3">
-          <div className="p-2 rounded-xl bg-slate-800/60">
-            <Icon size={20} />
-          </div>
-          <div>
-            <div className="text-slate-400 text-sm">{label}</div>
-            <div className="text-lg font-semibold">{value}</div>
-          </div>
+        <div className="p-4 rounded-2xl bg-slate-900/60 border border-slate-800">
+          <div className="text-slate-400 text-sm">{label}</div>
+          <div className="text-lg font-semibold">{String(value ?? "—")}</div>
         </div>
       );
     }
 
-    function Card({title, children, icon:Icon}) {
+    function Card({ title, children }) {
       return (
         <div className="rounded-2xl bg-slate-900/50 border border-slate-800 p-5">
-          <div className="flex items-center gap-2 mb-3">
-            {Icon && <Icon size={18} />}
-            <h3 className="font-semibold">{title}</h3>
-          </div>
+          <div className="font-semibold mb-3">{title}</div>
           {children}
         </div>
       );
     }
 
     function App(){
-      const [userId, setUserId] = React.useState("550e8400-e29b-41d4-a716-446655440000");
+      const [userId] = React.useState("550e8400-e29b-41d4-a716-446655440000");
       const [loading, setLoading] = React.useState(false);
       const [history, setHistory] = React.useState([]);
       const [status, setStatus] = React.useState("");
 
       const fetchHistory = async () => {
-        if(!API) return;
-        const res = await fetch(`${API}/executions/${userId}`);
-        if (res.ok) {
+        try {
+          const res = await fetch(`${API}/executions/${userId}`);
+          if (!res.ok) throw new Error(`HTTP ${res.status}`);
           const data = await res.json();
-          setHistory(data);
+          setHistory(Array.isArray(data) ? data : []);
+        } catch (err) {
+          console.error(err);
+          setStatus(`History error: ${err.message || err}`);
         }
       };
 
@@ -70,11 +64,12 @@
         setStatus("");
         try {
           const res = await fetch(`${API}${path}/${userId}`, { method: "POST" });
-          const data = await res.json();
-          if (!res.ok) throw new Error(data?.detail || "Failed");
+          const body = await res.json().catch(()=> ({}));
+          if (!res.ok) throw new Error(body?.detail || `HTTP ${res.status}`);
           setStatus("Agent run successful");
           await fetchHistory();
         } catch (e) {
+          console.error(e);
           setStatus(e.message || "Error");
         } finally {
           setLoading(false);
@@ -87,63 +82,46 @@
         <div className="max-w-5xl mx-auto p-6 space-y-6">
           <header className="flex items-center justify-between">
             <h1 className="text-2xl font-bold">EonFlow Dashboard</h1>
-            <button onClick={fetchHistory} className="px-3 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 flex items-center gap-2">
-              <RefreshCw size={16}/> Refresh
+            <button onClick={fetchHistory} className="px-3 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700">
+              Refresh
             </button>
           </header>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <Stat icon={Activity} label="Total Executions (last 25)" value={history.length} />
-            <Stat icon={CheckCircle} label="Recent Status" value={status || "—"} />
-            <Stat icon={Clock} label="User" value={userId.slice(0,8) + "…"} />
+            <Stat label="Total Executions (last 25)" value={history.length} />
+            <Stat label="Recent Status" value={status || "—"} />
+            <Stat label="User" value={userId.slice(0,8) + "…"} />
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <Card title="Daily Digest" icon={Calendar}>
+            <Card title="Daily Digest">
               <p className="text-sm text-slate-400 mb-3">Summarize today’s meetings, Slack mentions, and Notion updates.</p>
-              <button disabled={loading} onClick={() => callAgent("/agents/daily-digest")} className="w-full py-2 rounded-xl bg-blue-600 hover:bg-blue-500 flex items-center justify-center gap-2">
-                <Play size={16}/> {loading ? "Running..." : "Run Digest"}
+              <button disabled={loading} onClick={() => callAgent("/agents/daily-digest")} className="w-full py-2 rounded-xl bg-blue-600 hover:bg-blue-500">
+                {loading ? "Running…" : "Run Digest"}
               </button>
             </Card>
-            <Card title="Follow-Up Agent" icon={MessageSquare}>
+            <Card title="Follow-Up Agent">
               <p className="text-sm text-slate-400 mb-3">Suggest post-meeting follow-ups.</p>
-              <button disabled={loading} onClick={() => callAgent("/agents/follow-up")} className="w-full py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 flex items-center justify-center gap-2">
-                <Play size={16}/> {loading ? "Running..." : "Run Follow-Up"}
+              <button disabled={loading} onClick={() => callAgent("/agents/follow-up")} className="w-full py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500">
+                {loading ? "Running…" : "Run Follow-Up"}
               </button>
             </Card>
-            <Card title="Notion Summarizer" icon={FileText}>
+            <Card title="Notion Summarizer">
               <p className="text-sm text-slate-400 mb-3">Summarize recent Notion page changes.</p>
-              <button disabled={loading} onClick={() => callAgent("/agents/notion-summarizer")} className="w-full py-2 rounded-xl bg-violet-600 hover:bg-violet-500 flex items-center justify-center gap-2">
-                <Play size={16}/> {loading ? "Running..." : "Run Summarizer"}
+              <button disabled={loading} onClick={() => callAgent("/agents/notion-summarizer")} className="w-full py-2 rounded-xl bg-violet-600 hover:bg-violet-500">
+                {loading ? "Running…" : "Run Summarizer"}
               </button>
             </Card>
           </div>
 
-          <Card title="Execution History" icon={Settings}>
-            <div className="space-y-3">
-              {history.length === 0 && (
-                <div className="text-slate-400 text-sm">No executions yet. Run an agent to see results here.</div>
-              )}
-              {history.map((e) => (
-                <div key={e.id || Math.random()} className="p-4 rounded-xl bg-slate-900/60 border border-slate-800">
-                  <div className="flex items-center justify-between mb-2">
-                    <div className="font-medium">{e.agent_type}</div>
-                    <div className={"text-xs px-2 py-1 rounded " + (e.status === "completed" ? "bg-emerald-600/20 text-emerald-300" : "bg-rose-600/20 text-rose-300")}>{e.status}</div>
-                  </div>
-                  <pre className="text-xs whitespace-pre-wrap text-slate-300">{JSON.stringify(e.output_data || {}, null, 2)}</pre>
-                  <div className="text-xs text-slate-500 mt-2">{new Date(e.created_at || Date.now()).toLocaleString()}</div>
-                </div>
-              ))}
-            </div>
-          </Card>
-
-          <footer className="text-xs text-slate-500">
+          <div className="rounded-2xl bg-slate-900/50 border border-slate-800 p-5 text-xs text-slate-500">
             API: <code>{API || "not set"}</code>
-          </footer>
+          </div>
         </div>
       );
     }
 
+    // React 18 still supports render() (with a warning). It’s fine for this simple static page.
     ReactDOM.render(<App/>, document.getElementById('root'));
   </script>
 </body>
