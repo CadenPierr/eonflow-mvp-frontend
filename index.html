@@ -4,18 +4,25 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>EonFlow Dashboard</title>
+
+  <!-- Libraries -->
   <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
   <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
   <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
   <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
   <script src="https://cdn.tailwindcss.com"></script>
+
+  <!-- ✅ Load build-time vars BEFORE your app script -->
+  <script src="/env.js"></script>
 </head>
 <body class="bg-slate-950 text-slate-100">
   <div id="root" class="min-h-screen"></div>
+
   <script type="text/babel">
     const { Calendar, MessageSquare, FileText, Settings, Play, Clock, CheckCircle, XCircle, Activity, Zap, RefreshCw } = lucide;
 
-    const API = "https://web-production-4bc2.up.railway.app";
+    // ✅ Prefer env.js value; fall back to your Railway URL
+    const API = (window.__EONFLOW_API__ || "https://web-production-4bc2.up.railway.app");
 
     function Stat({icon:Icon, label, value}) {
       return (
@@ -99,9 +106,9 @@
               </button>
             </Card>
             <Card title="Follow-Up Agent" icon={MessageSquare}>
-              <p className="text-sm text-slate-400 mb-3">Suggest post‑meeting follow‑ups.</p>
+              <p className="text-sm text-slate-400 mb-3">Suggest post-meeting follow-ups.</p>
               <button disabled={loading} onClick={() => callAgent("/agents/follow-up")} className="w-full py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 flex items-center justify-center gap-2">
-                <Play size={16}/> {loading ? "Running..." : "Run Follow‑Up"}
+                <Play size={16}/> {loading ? "Running..." : "Run Follow-Up"}
               </button>
             </Card>
             <Card title="Notion Summarizer" icon={FileText}>
